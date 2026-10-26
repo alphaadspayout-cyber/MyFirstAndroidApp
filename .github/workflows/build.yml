@@ -4,17 +4,15 @@ name: Build Android Test App
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-
-permissions:
-  contents: read
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Java
@@ -24,15 +22,19 @@ jobs:
           java-version: '17'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
 
-      - name: Install Android SDK
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Create test app
+      - name: Install Android SDK packages
         run: |
-          mkdir -p app/src/main/java/com/example/myfirstapp
-          cat > settings.gradle.kts <<'EOF'
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Create test Android project
+        run: |
+          mkdir -p app/src/main/java/com/example/myfirstandroidapp
+
+          cat > settings.gradle <<'EOF'
           pluginManagement {
               repositories {
                   google()
@@ -51,29 +53,27 @@ jobs:
           include(":app")
           EOF
 
-          cat > build.gradle.kts <<'EOF'
+          cat > build.gradle <<'EOF'
           plugins {
-              id("com.android.application") version "8.7.3" apply false
-              id("org.jetbrains.kotlin.android") version "2.0.21" apply false
+              id 'com.android.application' version '8.6.1' apply false
           }
           EOF
 
-          cat > app/build.gradle.kts <<'EOF'
+          cat > app/build.gradle <<'EOF'
           plugins {
-              id("com.android.application")
-              id("org.jetbrains.kotlin.android")
+              id 'com.android.application'
           }
 
           android {
-              namespace = "com.example.myfirstapp"
-              compileSdk = 35
+              namespace 'com.example.myfirstandroidapp'
+              compileSdk 35
 
               defaultConfig {
-                  applicationId = "com.example.myfirstapp"
-                  minSdk = 31
-                  targetSdk = 35
-                  versionCode = 1
-                  versionName = "1.0"
+                  applicationId 'com.example.myfirstandroidapp'
+                  minSdk 31
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
               }
           }
           EOF
@@ -81,45 +81,51 @@ jobs:
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application
-                  android:theme="@android:style/Theme.Material.Light.NoActionBar"
-                  android:label="My Test App">
+                  android:label="My First Android App"
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar">
                   <activity
-                      android:name="com.example.myfirstapp.MainActivity"
+                      android:name=".MainActivity"
                       android:exported="true">
                       <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
               </application>
           </manifest>
           EOF
 
-          cat > app/src/main/java/com/example/myfirstapp/MainActivity.kt <<'EOF'
-          package com.example.myfirstapp
+          cat > app/src/main/java/com/example/myfirstandroidapp/MainActivity.java <<'EOF'
+          package com.example.myfirstandroidapp;
 
-          import android.app.Activity
-          import android.os.Bundle
-          import android.view.Gravity
-          import android.widget.TextView
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.graphics.Color;
+          import android.view.Gravity;
+          import android.widget.TextView;
 
-          class MainActivity : Activity() {
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-                  setContentView(TextView(this).apply {
-                      text = "Hello! My Android test app works."
-                      textSize = 24f
-                      gravity = Gravity.CENTER
-                  })
+          public class MainActivity extends Activity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+
+                  TextView text = new TextView(this);
+                  text.setText("Hello! My Android app is working.");
+                  text.setTextSize(22);
+                  text.setTextColor(Color.BLACK);
+                  text.setGravity(Gravity.CENTER);
+                  text.setPadding(24, 24, 24, 24);
+
+                  setContentView(text);
               }
           }
           EOF
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Build APK
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: '8.9'
-          arguments: assembleDebug
+        run: gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
